@@ -2,7 +2,21 @@ import socket
 import time
 import sys, select
 from getpass import getpass
-HOST = 'localhost'   # Symbolic name meaning all available interfaces
+import select
+import sys
+
+class TimeoutExpired(Exception):
+    pass
+    
+def input_with_timeout(prompt, timeout):
+    sys.stdout.write(prompt)
+    sys.stdout.flush()
+    ready, _, _ = select.select([sys.stdin], [],[], timeout)
+    if ready:
+        return sys.stdin.readline().rstrip('\n') # expect stdin to be line-buffered
+    raise TimeoutExpired
+
+HOST = '10.0.0.4'   # Symbolic name meaning all available interfaces
 PORT = 7903 # Arbitrary non-privileged port
 
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -26,7 +40,7 @@ while 1:
         data = s.recv(4000)
         
         if "Please enter your password: " in data:
-            password = getpass("Please enter your password:")
+            password = getpass("Please enter your password: ")
             s.sendall(password)
             
             
@@ -43,12 +57,14 @@ while 1:
     x = 0
     while 1:
         
-        time.sleep(1)
         data = s.recv(4000)
         
-        if "1. Change Password \n2. Log out\n3. Send private message\n4. Refresh\n5. Read unread messages\n>" in data:
+        if "\n1. Change Password \n2. Log out\n3. Send private message\n4. Read unread messages\n5. View Inbox\n6. See Friends\n7. Send Friend Request\n8. View Friend Requests\n9. Post Status\na. View Your Wall\nb. View News Feed\n>" in data:
             
-            choice = raw_input(data)
+            try: 
+                choice = input_with_timeout(data, 3)
+            except TimeoutExpired:
+                choice = '32'
         
             s.sendall(choice)
             
@@ -68,7 +84,7 @@ while 1:
                     print data
                     data = s.recv(4000)
                 
-                while "Enter new password" in data:
+                if "Enter new password" in data:
                     password = getpass(data)
                     s.send(password)
 
@@ -86,7 +102,7 @@ while 1:
                 print data
                 break
                 
-            elif choice == '3': #make sure here you account for bullshit from other user when they send shit over
+            elif choice == '3': 
                 
                 data = s.recv(4000)
                 
@@ -108,13 +124,45 @@ while 1:
                 else:
                     msg = raw_input(data)
                     s.sendall(msg)
-                    #data = s.recv(4000)
-                    #print data
+                    
+            elif choice == '32':
+                sys.stderr.write("\x1b[2J\x1b[H")
             elif choice == '4':
-                y = 0
+                data = s.recv(4000)
+                print data
+                stopViewingUnread = raw_input("Press enter to continue\n")
             elif choice == '5':
                 data = s.recv(4000)
                 print data
+                stopViewingUnread = raw_input("Press enter to continue\n")
+            elif choice == '6':
+                data = s.recv(4000)
+                print data
+                stopViewingUnread = raw_input("Press enter to continue\n")
+            elif choice == '7':
+                data = s.recv(4000)
+                chooseNewFriend = raw_input(data)
+                s.sendall(chooseNewFriend)
+            elif choice == '8':
+                data = s.recv(4000)
+                chooseToAccept = raw_input(data)
+                s.sendall(chooseToAccept)
+            elif choice == '9':
+                data = s.recv(4000)
+                status = raw_input(data)
+                s.sendall(status)
+                print 'status posted\n'
+            elif choice == 'a':
+                data = s.recv(4000)
+                print data
+                stopViewingUnread = raw_input("Press enter to continue\n")
+            elif choice == 'b':
+                data = s.recv(4000)
+                print data
+                stopViewingUnread = raw_input("Press enter to continue\n")
         else:
             print data
+            #time.sleep(3)
+            #stopViewingUnread = raw_input("Press enter to continue\n")
+            
 
